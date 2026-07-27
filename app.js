@@ -1,6 +1,7 @@
 // ===== STATE =====
 let posts = [];
 let activePostId = null;
+let pendingImages = []; // array of base64 strings for current modal
 
 // ===== ELEMENTS =====
 const postList       = document.getElementById('post-list');
@@ -11,12 +12,17 @@ const closeModalBtn  = document.getElementById('close-modal');
 const submitPostBtn  = document.getElementById('submit-post');
 const modalOverlay   = document.getElementById('modal-overlay');
 const modalUsername  = document.getElementById('modal-username');
-const modalTitle     = document.getElementById('modal-title');
+const modalTitleInput = document.getElementById('modal-title-input');
 const modalContent   = document.getElementById('modal-content');
 const modalImage     = document.getElementById('modal-image');
-const btnMinimize    = document.getElementById('btn-minimize');
-const btnMaximize    = document.getElementById('btn-maximize');
-const btnClose       = document.getElementById('btn-close');
+const imagePreviews  = document.getElementById('image-previews');
+
+// Lightbox
+const lightbox = document.createElement('div');
+lightbox.className = 'lightbox';
+lightbox.innerHTML = '<img id="lightbox-img" src="" alt="fullsize" />';
+document.body.appendChild(lightbox);
+lightbox.addEventListener('click', () => lightbox.classList.remove('open'));
 
 // ===== LOAD FROM LOCALSTORAGE =====
 function loadPosts() {
@@ -24,14 +30,13 @@ function loadPosts() {
   if (saved) {
     posts = JSON.parse(saved);
   } else {
-    // Demo posts
     posts = [
       {
         id: 1,
         username: 'root',
         title: 'Welcome to TERMINAL://SOCIAL',
-        content: 'This is a terminal-themed social platform.\nPost text, images, and more.\nUse the [ + POST ] button to get started.',
-        image: null,
+        content: 'This is a terminal-themed social platform.\nPost text and multiple images.\nUse the [ + POST ] button to get started.',
+        images: [],
         timestamp: new Date('2026-07-27T10:00:00').toISOString()
       },
       {
@@ -39,7 +44,7 @@ function loadPosts() {
         username: 'alex99',
         title: 'First post here!',
         content: 'Salut tuturor! Tocmai am descoperit acest site.\nSe pare ca e destul de interesant.',
-        image: null,
+        images: [],
         timestamp: new Date('2026-07-27T11:30:00').toISOString()
       },
       {
@@ -47,7 +52,7 @@ function loadPosts() {
         username: 'dev_null',
         title: 'How to exit vim',
         content: ':q!\n\nYou\'re welcome.',
-        image: null,
+        images: [],
         timestamp: new Date('2026-07-27T12:00:00').toISOString()
       }
     ];
@@ -74,7 +79,6 @@ function renderSidebar(filter = '') {
     return;
   }
 
-  // Newest first
   const sorted = [...filtered].reverse();
 
   sorted.forEach(post => {
@@ -104,6 +108,17 @@ function selectPost(id) {
     hour: '2-digit', minute: '2-digit'
   });
 
+  // Support old posts that used single `image` field
+  const images = post.images && post.images.length
+    ? post.images
+    : (post.image ? [post.image] : []);
+
+  const imagesHtml = images.length
+    ? `<div class="post-images ${images.length === 1 ? 'single' : ''}">
+        ${images.map(src => `<img src="${src}" alt="post image" />`).join('')}
+       </div>`
+    : '';
+
   contentArea.innerHTML = `
     <div class="post-view">
       <div class="post-view-header">
@@ -112,13 +127,23 @@ function selectPost(id) {
         <div class="post-view-timestamp">${timeStr}</div>
       </div>
       <div class="post-view-body">${escapeHtml(post.content)}</div>
-      ${post.image ? `<img class="post-view-image" src="${post.image}" alt="post image" />` : ''}
+      ${imagesHtml}
     </div>
   `;
+
+  // Lightbox on image click
+  contentArea.querySelectorAll('.post-images img').forEach(img => {
+    img.addEventListener('click', () => {
+      document.getElementById('lightbox-img').src = img.src;
+      lightbox.classList.add('open');
+    });
+  });
 }
 
 // ===== MODAL =====
 openModalBtn.addEventListener('click', () => {
+  pendingImages = [];
+  renderPreviews();
   modalOverlay.classList.add('open');
   modalUsername.focus();
 });
@@ -132,43 +157,67 @@ modalOverlay.addEventListener('click', (e) => {
 function closeModal() {
   modalOverlay.classList.remove('open');
   modalUsername.value = '';
-  modalTitle.value = '';
+  modalTitleInput.value = '';
   modalContent.value = '';
   modalImage.value = '';
+  pendingImages = [];
+  renderPreviews();
 }
 
+// ===== MULTIPLE IMAGE HANDLING =====
+modalImage.addEventListener('change', () => {
+  const files = Array.from(modalImage.files);
+  let loaded = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      pendingImages.push(e.target.result);
+      loaded++;
+      if (loaded === files.length) {
+        renderPreviews();
+        modalImage.value = ''; // reset input so same file can be added again
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+});
+
+function renderPreviews() {
+  imagePreviews.innerHTML = '';
+  pendingImages.forEach((src, idx) => {
+    const item = document.createElement('div');
+    item.className = 'preview-item';
+    item.innerHTML = `
+      <img src="${src}" alt="preview" />
+      <span class="remove-img" data-idx="${idx}">✕</span>
+    `;
+    item.querySelector('.remove-img').addEventListener('click', () => {
+      pendingImages.splice(idx, 1);
+      renderPreviews();
+    });
+    imagePreviews.appendChild(item);
+  });
+}
+
+// ===== SUBMIT POST =====
 submitPostBtn.addEventListener('click', () => {
   const username = modalUsername.value.trim() || 'anonymous';
-  const title    = modalTitle.value.trim();
+  const title    = modalTitleInput.value.trim();
   const content  = modalContent.value.trim();
 
   if (!title && !content) {
-    modalTitle.focus();
-    modalTitle.style.borderColor = '#ff4444';
-    setTimeout(() => modalTitle.style.borderColor = '', 1000);
+    modalTitleInput.focus();
+    modalTitleInput.style.borderColor = '#ff4444';
+    setTimeout(() => { modalTitleInput.style.borderColor = ''; }, 1000);
     return;
   }
 
-  const file = modalImage.files[0];
-
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      createPost(username, title || '(no title)', content, e.target.result);
-    };
-    reader.readAsDataURL(file);
-  } else {
-    createPost(username, title || '(no title)', content, null);
-  }
-});
-
-function createPost(username, title, content, imageData) {
   const newPost = {
     id: Date.now(),
     username,
-    title,
+    title: title || '(no title)',
     content,
-    image: imageData,
+    images: [...pendingImages],
     timestamp: new Date().toISOString()
   };
 
@@ -177,37 +226,11 @@ function createPost(username, title, content, imageData) {
   closeModal();
   renderSidebar(searchInput.value);
   selectPost(newPost.id);
-}
+});
 
 // ===== SEARCH =====
 searchInput.addEventListener('input', () => {
   renderSidebar(searchInput.value);
-});
-
-// ===== TITLE BAR CONTROLS =====
-btnClose.addEventListener('click', () => {
-  document.querySelector('.window').style.display = 'none';
-});
-
-btnMinimize.addEventListener('click', () => {
-  const main = document.querySelector('.main');
-  const topBar = document.querySelector('.top-bar');
-  const isMinimized = main.style.display === 'none';
-  main.style.display = isMinimized ? '' : 'none';
-  topBar.style.display = isMinimized ? '' : 'none';
-});
-
-btnMaximize.addEventListener('click', () => {
-  const win = document.querySelector('.window');
-  if (win.style.width === '100vw') {
-    win.style.width = '';
-    win.style.height = '';
-    win.style.border = '';
-  } else {
-    win.style.width = '100vw';
-    win.style.height = '100vh';
-    win.style.border = 'none';
-  }
 });
 
 // ===== UTILS =====
@@ -223,6 +246,5 @@ function escapeHtml(str) {
 loadPosts();
 renderSidebar();
 if (posts.length > 0) {
-  // Select most recent post on load
   selectPost(posts[posts.length - 1].id);
 }
