@@ -268,36 +268,6 @@ html, body {
   width: auto;
 }
 
-/* ===== PIN BUTTON ===== */
-.pin-btn {
-  margin-top: 24px;
-  background: transparent;
-  border: 1px solid var(--dim);
-  color: var(--dim);
-  font-family: var(--font);
-  font-size: 12px;
-  padding: 5px 14px;
-  cursor: pointer;
-  letter-spacing: 1px;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-
-.pin-btn:hover {
-  background: var(--fg);
-  color: var(--bg);
-  border-color: var(--fg);
-}
-
-/* ===== PINNED TAB ===== */
-.post-tab.pinned {
-  border-left: 2px solid var(--fg);
-  background: #0d0d0d;
-}
-
-.post-tab.pinned .tab-user {
-  color: var(--fg);
-}
-
 /* ===== DELETE BUTTON ===== */
 .delete-btn {
   margin-top: 24px;
