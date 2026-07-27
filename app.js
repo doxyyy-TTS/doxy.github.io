@@ -85,9 +85,9 @@ function renderSidebar(filter = '') {
     postList.innerHTML = '<div class="no-results">&gt; no results found.</div>';
     return;
   }
-  // Pinned first, then rest newest first
+  // Pinned first (in original order), then rest newest first
   const pinned = filtered.filter(p => p.pinned);
-  const rest   = [...filtered.filter(p => !p.pinned)].reverse();
+  const rest   = filtered.filter(p => !p.pinned).sort((a, b) => b.id - a.id);
   [...pinned, ...rest].forEach(post => {
     const tab = document.createElement('div');
     tab.className = 'post-tab' + (post.id === activePostId ? ' active' : '') + (post.pinned ? ' pinned' : '');
