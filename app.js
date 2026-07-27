@@ -144,7 +144,6 @@ openModalBtn.addEventListener('click', () => {
   modalUsername.focus();
 });
 closeModalBtn.addEventListener('click', closeModal);
-modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
 
 function closeModal() {
   modalOverlay.classList.remove('open');
