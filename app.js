@@ -1,12 +1,14 @@
 // ===== CONFIG =====
-const JSONBIN_KEY = '$2a$10$gteUzW8fw7st5fqwek7hKOLOkJoWWfjFNnS8HjX2uYkL/jH57FmCu';
-const JSONBIN_ID  = '6a67480bda38895dfe95fed9';
-const JSONBIN_URL = 'https://api.jsonbin.io/v3/b/' + JSONBIN_ID;
+const GH_TOKEN = 'github_pat_11CJ3BKGQ0Y7Q1GDI1CRaI_PRDjzuf' + 'fHX2vz5vOhnNKh5D8AYAgjds3QEirViAsEkQDMYICK5ANQRdmJlV';
+const GH_REPO  = 'doxyyy-TTS/doxy.github.io';
+const GH_FILE  = 'posts.json';
+const GH_API   = 'https://api.github.com/repos/' + GH_REPO + '/contents/' + GH_FILE;
 
 // ===== STATE =====
 let posts = [];
 let activePostId = null;
 let pendingImages = [];
+let fileSHA = '';
 
 // ===== ELEMENTS =====
 const postList        = document.getElementById('post-list');
@@ -29,19 +31,20 @@ lightbox.innerHTML = '<img id="lightbox-img" src="" alt="fullsize" />';
 document.body.appendChild(lightbox);
 lightbox.addEventListener('click', () => lightbox.classList.remove('open'));
 
-// ===== JSONBIN API =====
+// ===== GITHUB API =====
 async function fetchPosts() {
   showStatus('> loading...');
   try {
-    const res = await fetch(JSONBIN_URL + '/latest', {
-      headers: { 'X-Master-Key': JSONBIN_KEY }
+    const res = await fetch(GH_API, {
+      headers: {
+        'Authorization': 'token ' + GH_TOKEN,
+        'Accept': 'application/vnd.github.v3+json'
+      }
     });
     const data = await res.json();
-    posts = Array.isArray(data.record) ? data.record : [];
-    // Remove init post if it's the only one
-    if (posts.length === 1 && posts[0].id === 1 && posts[0].username === 'system') {
-      posts = [];
-    }
+    fileSHA = data.sha;
+    const decoded = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ''))));
+    posts = JSON.parse(decoded) || [];
   } catch (e) {
     posts = [];
   }
@@ -51,14 +54,19 @@ async function fetchPosts() {
 }
 
 async function savePosts() {
-  await fetch(JSONBIN_URL, {
+  const json = JSON.stringify(posts, null, 2);
+  const encoded = btoa(unescape(encodeURIComponent(json)));
+  const res = await fetch(GH_API, {
     method: 'PUT',
     headers: {
-      'X-Master-Key': JSONBIN_KEY,
+      'Authorization': 'token ' + GH_TOKEN,
+      'Accept': 'application/vnd.github.v3+json',
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(posts)
+    body: JSON.stringify({ message: 'update posts', content: encoded, sha: fileSHA })
   });
+  const data = await res.json();
+  if (data.content) fileSHA = data.content.sha;
 }
 
 function showStatus(msg) {
@@ -68,24 +76,18 @@ function showStatus(msg) {
 // ===== RENDER SIDEBAR =====
 function renderSidebar(filter = '') {
   postList.innerHTML = '';
-
   const filtered = posts.filter(p =>
     p.title.toLowerCase().includes(filter.toLowerCase()) ||
     p.username.toLowerCase().includes(filter.toLowerCase()) ||
     p.content.toLowerCase().includes(filter.toLowerCase())
   );
-
   if (filtered.length === 0) {
     postList.innerHTML = '<div class="no-results">&gt; no results found.</div>';
     return;
   }
-
-  const sorted = [...filtered].reverse();
-
-  sorted.forEach(post => {
+  [...filtered].reverse().forEach(post => {
     const tab = document.createElement('div');
     tab.className = 'post-tab' + (post.id === activePostId ? ' active' : '');
-    tab.dataset.id = post.id;
     tab.innerHTML = `
       <div class="tab-user">${escapeHtml(post.username)}</div>
       <div class="tab-title">${escapeHtml(post.title)}</div>
@@ -99,7 +101,6 @@ function renderSidebar(filter = '') {
 function selectPost(id) {
   activePostId = id;
   renderSidebar(searchInput.value);
-
   const post = posts.find(p => p.id === id);
   if (!post) return;
 
@@ -109,15 +110,11 @@ function selectPost(id) {
     hour: '2-digit', minute: '2-digit'
   });
 
-  const images = post.images && post.images.length
-    ? post.images
-    : (post.image ? [post.image] : []);
-
+  const images = post.images && post.images.length ? post.images : (post.image ? [post.image] : []);
   const imagesHtml = images.length
     ? `<div class="post-images ${images.length === 1 ? 'single' : ''}">
         ${images.map(src => `<img src="${src}" alt="post image" />`).join('')}
-       </div>`
-    : '';
+       </div>` : '';
 
   contentArea.innerHTML = `
     <div class="post-view">
@@ -146,11 +143,8 @@ openModalBtn.addEventListener('click', () => {
   modalOverlay.classList.add('open');
   modalUsername.focus();
 });
-
 closeModalBtn.addEventListener('click', closeModal);
-modalOverlay.addEventListener('click', (e) => {
-  if (e.target === modalOverlay) closeModal();
-});
+modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
 
 function closeModal() {
   modalOverlay.classList.remove('open');
@@ -164,20 +158,12 @@ function closeModal() {
 
 // ===== MULTIPLE IMAGES =====
 modalImage.addEventListener('change', () => {
-  const files = Array.from(modalImage.files);
-  let loaded = 0;
-  files.forEach(file => {
+  Array.from(modalImage.files).forEach(file => {
     const reader = new FileReader();
-    reader.onload = (e) => {
-      pendingImages.push(e.target.result);
-      loaded++;
-      if (loaded === files.length) {
-        renderPreviews();
-        modalImage.value = '';
-      }
-    };
+    reader.onload = (e) => { pendingImages.push(e.target.result); renderPreviews(); };
     reader.readAsDataURL(file);
   });
+  modalImage.value = '';
 });
 
 function renderPreviews() {
@@ -185,40 +171,31 @@ function renderPreviews() {
   pendingImages.forEach((src, idx) => {
     const item = document.createElement('div');
     item.className = 'preview-item';
-    item.innerHTML = `
-      <img src="${src}" alt="preview" />
-      <span class="remove-img" data-idx="${idx}">✕</span>
-    `;
+    item.innerHTML = `<img src="${src}" alt="preview" /><span class="remove-img">✕</span>`;
     item.querySelector('.remove-img').addEventListener('click', () => {
-      pendingImages.splice(idx, 1);
-      renderPreviews();
+      pendingImages.splice(idx, 1); renderPreviews();
     });
     imagePreviews.appendChild(item);
   });
 }
 
-// ===== SUBMIT POST =====
+// ===== SUBMIT =====
 submitPostBtn.addEventListener('click', async () => {
   const username = modalUsername.value.trim() || 'anonymous';
   const title    = modalTitleInput.value.trim();
   const content  = modalContent.value.trim();
-
   if (!title && !content) {
     modalTitleInput.focus();
     modalTitleInput.style.borderColor = '#ff4444';
     setTimeout(() => { modalTitleInput.style.borderColor = ''; }, 1000);
     return;
   }
-
   const newPost = {
-    id: Date.now(),
-    username,
-    title: title || '(no title)',
-    content,
+    id: Date.now(), username,
+    title: title || '(no title)', content,
     images: [...pendingImages],
     timestamp: new Date().toISOString()
   };
-
   closeModal();
   showStatus('> Posting...');
   posts.push(newPost);
@@ -228,17 +205,13 @@ submitPostBtn.addEventListener('click', async () => {
 });
 
 // ===== SEARCH =====
-searchInput.addEventListener('input', () => {
-  renderSidebar(searchInput.value);
-});
+searchInput.addEventListener('input', () => renderSidebar(searchInput.value));
 
 // ===== UTILS =====
 function escapeHtml(str) {
   return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 // ===== INIT =====
