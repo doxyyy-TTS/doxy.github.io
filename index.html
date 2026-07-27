@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TERMINAL // SOCIAL</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- WINDOW WRAPPER -->
+  <div class="window">
+
+    <!-- TITLE BAR -->
+    <div class="title-bar">
+      <span class="title-text">TERMINAL://SOCIAL</span>
+      <div class="title-controls">
+        <span class="ctrl-btn" id="btn-minimize">─</span>
+        <span class="ctrl-btn" id="btn-maximize">□</span>
+        <span class="ctrl-btn red" id="btn-close">✕</span>
+      </div>
+    </div>
+
+    <!-- TOP BAR: Search + Post -->
+    <div class="top-bar">
+      <span class="prompt">&gt;_</span>
+      <input type="text" id="search-input" class="search-input" placeholder="search posts..." autocomplete="off" />
+      <button class="post-btn" id="open-post-modal">[ + POST ]</button>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main">
+
+      <!-- LEFT: Post list tabs -->
+      <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">// POSTS</div>
+        <div id="post-list">
+          <!-- posts injected by JS -->
+        </div>
+      </div>
+
+      <!-- RIGHT: Post content viewer -->
+      <div class="content-area" id="content-area">
+        <div class="empty-state">
+          <p>&gt; Select a post from the left to view it.</p>
+          <p class="blink">█</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- POST MODAL -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <div class="modal-title">// NEW POST</div>
+      <label class="modal-label">USERNAME</label>
+      <input type="text" id="modal-username" class="modal-input" placeholder="your_name" />
+
+      <label class="modal-label">TITLE</label>
+      <input type="text" id="modal-title" class="modal-input" placeholder="post title..." />
+
+      <label class="modal-label">CONTENT</label>
+      <textarea id="modal-content" class="modal-textarea" placeholder="write something..."></textarea>
+
+      <label class="modal-label">IMAGE (optional)</label>
+      <input type="file" id="modal-image" class="modal-file" accept="image/*" />
+
+      <div class="modal-actions">
+        <button class="modal-btn cancel" id="close-modal">[ CANCEL ]</button>
+        <button class="modal-btn submit" id="submit-post">[ SUBMIT ]</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
