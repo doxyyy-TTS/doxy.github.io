@@ -1,15 +1,12 @@
 // ===== CONFIG =====
-const GITHUB_TOKEN  = ['ghp_k9gh4p6FDIQo', 'Eh8xu23mMmsSPqqoDv39hQX0'].join('');
-const GITHUB_REPO   = 'doxyyy-TTS/doxy.github.io';
-const POSTS_FILE    = 'posts.json';
-const API_BASE      = 'https://api.github.com';
-const RAW_BASE      = 'https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/' + POSTS_FILE;
+const JSONBIN_KEY = '$2a$10$gteUzW8fw7st5fqwek7hKOLOkJoWWfjFNnS8HjX2uYkL/jH57FmCu';
+const JSONBIN_ID  = '6a67480bda38895dfe95fed9';
+const JSONBIN_URL = 'https://api.jsonbin.io/v3/b/' + JSONBIN_ID;
 
 // ===== STATE =====
 let posts = [];
 let activePostId = null;
 let pendingImages = [];
-let postsSHA = '';   // SHA needed to update file on GitHub
 
 // ===== ELEMENTS =====
 const postList        = document.getElementById('post-list');
@@ -32,21 +29,19 @@ lightbox.innerHTML = '<img id="lightbox-img" src="" alt="fullsize" />';
 document.body.appendChild(lightbox);
 lightbox.addEventListener('click', () => lightbox.classList.remove('open'));
 
-// ===== GITHUB API HELPERS =====
+// ===== JSONBIN API =====
 async function fetchPosts() {
-  showStatus('loading...');
+  showStatus('> loading...');
   try {
-    // Use API to also get the SHA (needed for updates)
-    const res = await fetch(`${API_BASE}/repos/${GITHUB_REPO}/contents/${POSTS_FILE}`, {
-      headers: {
-        'Authorization': 'token ' + GITHUB_TOKEN,
-        'Accept': 'application/vnd.github.v3+json'
-      }
+    const res = await fetch(JSONBIN_URL + '/latest', {
+      headers: { 'X-Master-Key': JSONBIN_KEY }
     });
     const data = await res.json();
-    postsSHA = data.sha;
-    const decoded = atob(data.content.replace(/\n/g, ''));
-    posts = JSON.parse(decoded) || [];
+    posts = Array.isArray(data.record) ? data.record : [];
+    // Remove init post if it's the only one
+    if (posts.length === 1 && posts[0].id === 1 && posts[0].username === 'system') {
+      posts = [];
+    }
   } catch (e) {
     posts = [];
   }
@@ -56,25 +51,14 @@ async function fetchPosts() {
 }
 
 async function savePosts() {
-  const content = btoa(unescape(encodeURIComponent(JSON.stringify(posts, null, 2))));
-  const body = JSON.stringify({
-    message: 'Update posts',
-    content: content,
-    sha: postsSHA
-  });
-
-  const res = await fetch(`${API_BASE}/repos/${GITHUB_REPO}/contents/${POSTS_FILE}`, {
+  await fetch(JSONBIN_URL, {
     method: 'PUT',
     headers: {
-      'Authorization': 'token ' + GITHUB_TOKEN,
-      'Accept': 'application/vnd.github.v3+json',
+      'X-Master-Key': JSONBIN_KEY,
       'Content-Type': 'application/json'
     },
-    body: body
+    body: JSON.stringify(posts)
   });
-
-  const data = await res.json();
-  postsSHA = data.content.sha; // update SHA for next write
 }
 
 function showStatus(msg) {
@@ -148,7 +132,6 @@ function selectPost(id) {
     </div>
   `;
 
-  // Lightbox
   contentArea.querySelectorAll('.post-images img').forEach(img => {
     img.addEventListener('click', () => {
       document.getElementById('lightbox-img').src = img.src;
@@ -156,7 +139,6 @@ function selectPost(id) {
     });
   });
 
-  // Delete
   document.getElementById('delete-post-btn').addEventListener('click', async () => {
     posts = posts.filter(p => p.id !== id);
     activePostId = null;
