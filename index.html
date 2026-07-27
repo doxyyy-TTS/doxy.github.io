@@ -11,18 +11,9 @@
   <!-- WINDOW WRAPPER -->
   <div class="window">
 
-    <!-- TITLE BAR -->
-    <div class="title-bar">
-      <span class="title-text">TERMINAL://SOCIAL</span>
-      <div class="title-controls">
-        <span class="ctrl-btn" id="btn-minimize">─</span>
-        <span class="ctrl-btn" id="btn-maximize">□</span>
-        <span class="ctrl-btn red" id="btn-close">✕</span>
-      </div>
-    </div>
-
     <!-- TOP BAR: Search + Post -->
     <div class="top-bar">
+      <span class="title-text">TERMINAL://SOCIAL</span>
       <span class="prompt">&gt;_</span>
       <input type="text" id="search-input" class="search-input" placeholder="search posts..." autocomplete="off" />
       <button class="post-btn" id="open-post-modal">[ + POST ]</button>
@@ -54,17 +45,21 @@
   <div class="modal-overlay" id="modal-overlay">
     <div class="modal">
       <div class="modal-title">// NEW POST</div>
+
       <label class="modal-label">USERNAME</label>
       <input type="text" id="modal-username" class="modal-input" placeholder="your_name" />
 
       <label class="modal-label">TITLE</label>
-      <input type="text" id="modal-title" class="modal-input" placeholder="post title..." />
+      <input type="text" id="modal-title-input" class="modal-input" placeholder="post title..." />
 
       <label class="modal-label">CONTENT</label>
       <textarea id="modal-content" class="modal-textarea" placeholder="write something..."></textarea>
 
-      <label class="modal-label">IMAGE (optional)</label>
-      <input type="file" id="modal-image" class="modal-file" accept="image/*" />
+      <label class="modal-label">IMAGES (optional — multiple allowed)</label>
+      <input type="file" id="modal-image" class="modal-file" accept="image/*" multiple />
+
+      <!-- Image previews -->
+      <div id="image-previews" class="image-previews"></div>
 
       <div class="modal-actions">
         <button class="modal-btn cancel" id="close-modal">[ CANCEL ]</button>
