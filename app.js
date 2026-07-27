@@ -223,6 +223,7 @@ submitPostBtn.addEventListener('click', async () => {
     id: Date.now(), username,
     title: title || '(no title)', content,
     images: [...pendingImages],
+    pinned: false,
     timestamp: new Date().toISOString()
   };
   closeModal();
