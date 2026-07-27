@@ -49,10 +49,11 @@ async function fetchPosts() {
     posts = [];
   }
   renderSidebar();
-  // Select first pinned post, or last post if none pinned
-  const pinned = posts.find(p => p.pinned);
-  if (pinned) selectPost(pinned.id);
-  else if (posts.length > 0) selectPost(posts[posts.length - 1].id);
+  // Select first pinned post on load, fallback to newest
+  const firstPinned = posts.find(p => p.pinned);
+  const newest = [...posts].sort((a, b) => b.id - a.id)[0];
+  if (firstPinned) selectPost(firstPinned.id);
+  else if (newest) selectPost(newest.id);
   else showStatus('> No posts yet. Be the first!');
 }
 
