@@ -14,6 +14,8 @@
     "title": "test",
     "content": "1",
     "images": [],
+    "pinned": false
+  ,
     "timestamp": "2026-07-27T12:31:31.906Z"
   }
 ]
