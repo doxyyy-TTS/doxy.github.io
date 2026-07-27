@@ -128,7 +128,6 @@ function selectPost(id) {
       </div>
       <div class="post-view-body">${escapeHtml(post.content)}</div>
       ${imagesHtml}
-      <button class="delete-btn" id="delete-post-btn">[ DELETE POST ]</button>
     </div>
   `;
 
@@ -137,15 +136,6 @@ function selectPost(id) {
       document.getElementById('lightbox-img').src = img.src;
       lightbox.classList.add('open');
     });
-  });
-
-  document.getElementById('delete-post-btn').addEventListener('click', async () => {
-    posts = posts.filter(p => p.id !== id);
-    activePostId = null;
-    showStatus('> Deleting...');
-    renderSidebar(searchInput.value);
-    await savePosts();
-    showStatus('> Post deleted.');
   });
 }
 
