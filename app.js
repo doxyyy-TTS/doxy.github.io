@@ -85,11 +85,14 @@ function renderSidebar(filter = '') {
     postList.innerHTML = '<div class="no-results">&gt; no results found.</div>';
     return;
   }
-  [...filtered].reverse().forEach(post => {
+  // Pinned first, then rest newest first
+  const pinned = filtered.filter(p => p.pinned);
+  const rest   = [...filtered.filter(p => !p.pinned)].reverse();
+  [...pinned, ...rest].forEach(post => {
     const tab = document.createElement('div');
-    tab.className = 'post-tab' + (post.id === activePostId ? ' active' : '');
+    tab.className = 'post-tab' + (post.id === activePostId ? ' active' : '') + (post.pinned ? ' pinned' : '');
     tab.innerHTML = `
-      <div class="tab-user">${escapeHtml(post.username)}</div>
+      <div class="tab-user">${post.pinned ? '📌 ' : ''}${escapeHtml(post.username)}</div>
       <div class="tab-title">${escapeHtml(post.title)}</div>
     `;
     tab.addEventListener('click', () => selectPost(post.id));
@@ -125,6 +128,7 @@ function selectPost(id) {
       </div>
       <div class="post-view-body">${escapeHtml(post.content)}</div>
       ${imagesHtml}
+      <button class="pin-btn" id="pin-post-btn">${post.pinned ? '[ UNPIN ]' : '[ PIN ]'}</button>
     </div>
   `;
 
@@ -133,6 +137,15 @@ function selectPost(id) {
       document.getElementById('lightbox-img').src = img.src;
       lightbox.classList.add('open');
     });
+  });
+
+  document.getElementById('pin-post-btn').addEventListener('click', async () => {
+    const p = posts.find(x => x.id === id);
+    if (!p) return;
+    p.pinned = !p.pinned;
+    document.getElementById('pin-post-btn').textContent = p.pinned ? '[ UNPIN ]' : '[ PIN ]';
+    renderSidebar(searchInput.value);
+    await savePosts();
   });
 }
 
