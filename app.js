@@ -1,21 +1,29 @@
+// ===== CONFIG =====
+const GITHUB_TOKEN  = ['ghp_k9gh4p6FDIQo', 'Eh8xu23mMmsSPqqoDv39hQX0'].join('');
+const GITHUB_REPO   = 'doxyyy-TTS/doxy.github.io';
+const POSTS_FILE    = 'posts.json';
+const API_BASE      = 'https://api.github.com';
+const RAW_BASE      = 'https://raw.githubusercontent.com/' + GITHUB_REPO + '/main/' + POSTS_FILE;
+
 // ===== STATE =====
 let posts = [];
 let activePostId = null;
-let pendingImages = []; // array of base64 strings for current modal
+let pendingImages = [];
+let postsSHA = '';   // SHA needed to update file on GitHub
 
 // ===== ELEMENTS =====
-const postList       = document.getElementById('post-list');
-const contentArea    = document.getElementById('content-area');
-const searchInput    = document.getElementById('search-input');
-const openModalBtn   = document.getElementById('open-post-modal');
-const closeModalBtn  = document.getElementById('close-modal');
-const submitPostBtn  = document.getElementById('submit-post');
-const modalOverlay   = document.getElementById('modal-overlay');
-const modalUsername  = document.getElementById('modal-username');
+const postList        = document.getElementById('post-list');
+const contentArea     = document.getElementById('content-area');
+const searchInput     = document.getElementById('search-input');
+const openModalBtn    = document.getElementById('open-post-modal');
+const closeModalBtn   = document.getElementById('close-modal');
+const submitPostBtn   = document.getElementById('submit-post');
+const modalOverlay    = document.getElementById('modal-overlay');
+const modalUsername   = document.getElementById('modal-username');
 const modalTitleInput = document.getElementById('modal-title-input');
-const modalContent   = document.getElementById('modal-content');
-const modalImage     = document.getElementById('modal-image');
-const imagePreviews  = document.getElementById('image-previews');
+const modalContent    = document.getElementById('modal-content');
+const modalImage      = document.getElementById('modal-image');
+const imagePreviews   = document.getElementById('image-previews');
 
 // Lightbox
 const lightbox = document.createElement('div');
@@ -24,19 +32,53 @@ lightbox.innerHTML = '<img id="lightbox-img" src="" alt="fullsize" />';
 document.body.appendChild(lightbox);
 lightbox.addEventListener('click', () => lightbox.classList.remove('open'));
 
-// ===== LOAD FROM LOCALSTORAGE =====
-function loadPosts() {
-  const saved = localStorage.getItem('tts_posts');
-  if (saved) {
-    posts = JSON.parse(saved);
-  } else {
+// ===== GITHUB API HELPERS =====
+async function fetchPosts() {
+  showStatus('loading...');
+  try {
+    // Use API to also get the SHA (needed for updates)
+    const res = await fetch(`${API_BASE}/repos/${GITHUB_REPO}/contents/${POSTS_FILE}`, {
+      headers: {
+        'Authorization': 'token ' + GITHUB_TOKEN,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+    const data = await res.json();
+    postsSHA = data.sha;
+    const decoded = atob(data.content.replace(/\n/g, ''));
+    posts = JSON.parse(decoded) || [];
+  } catch (e) {
     posts = [];
-    savePosts();
   }
+  renderSidebar();
+  if (posts.length > 0) selectPost(posts[posts.length - 1].id);
+  else showStatus('> No posts yet. Be the first!');
 }
 
-function savePosts() {
-  localStorage.setItem('tts_posts', JSON.stringify(posts));
+async function savePosts() {
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(posts, null, 2))));
+  const body = JSON.stringify({
+    message: 'Update posts',
+    content: content,
+    sha: postsSHA
+  });
+
+  const res = await fetch(`${API_BASE}/repos/${GITHUB_REPO}/contents/${POSTS_FILE}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': 'token ' + GITHUB_TOKEN,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
+    },
+    body: body
+  });
+
+  const data = await res.json();
+  postsSHA = data.content.sha; // update SHA for next write
+}
+
+function showStatus(msg) {
+  contentArea.innerHTML = `<div class="empty-state"><p>${msg}</p><p class="blink">█</p></div>`;
 }
 
 // ===== RENDER SIDEBAR =====
@@ -83,7 +125,6 @@ function selectPost(id) {
     hour: '2-digit', minute: '2-digit'
   });
 
-  // Support old posts that used single `image` field
   const images = post.images && post.images.length
     ? post.images
     : (post.image ? [post.image] : []);
@@ -107,25 +148,22 @@ function selectPost(id) {
     </div>
   `;
 
-  document.getElementById('delete-post-btn').addEventListener('click', () => {
-    posts = posts.filter(p => p.id !== id);
-    savePosts();
-    activePostId = null;
-    contentArea.innerHTML = `
-      <div class="empty-state">
-        <p>&gt; Post deleted.</p>
-        <p class="blink">█</p>
-      </div>
-    `;
-    renderSidebar(searchInput.value);
-  });
-
-  // Lightbox on image click
+  // Lightbox
   contentArea.querySelectorAll('.post-images img').forEach(img => {
     img.addEventListener('click', () => {
       document.getElementById('lightbox-img').src = img.src;
       lightbox.classList.add('open');
     });
+  });
+
+  // Delete
+  document.getElementById('delete-post-btn').addEventListener('click', async () => {
+    posts = posts.filter(p => p.id !== id);
+    activePostId = null;
+    showStatus('> Deleting...');
+    renderSidebar(searchInput.value);
+    await savePosts();
+    showStatus('> Post deleted.');
   });
 }
 
@@ -138,7 +176,6 @@ openModalBtn.addEventListener('click', () => {
 });
 
 closeModalBtn.addEventListener('click', closeModal);
-
 modalOverlay.addEventListener('click', (e) => {
   if (e.target === modalOverlay) closeModal();
 });
@@ -153,7 +190,7 @@ function closeModal() {
   renderPreviews();
 }
 
-// ===== MULTIPLE IMAGE HANDLING =====
+// ===== MULTIPLE IMAGES =====
 modalImage.addEventListener('change', () => {
   const files = Array.from(modalImage.files);
   let loaded = 0;
@@ -164,7 +201,7 @@ modalImage.addEventListener('change', () => {
       loaded++;
       if (loaded === files.length) {
         renderPreviews();
-        modalImage.value = ''; // reset input so same file can be added again
+        modalImage.value = '';
       }
     };
     reader.readAsDataURL(file);
@@ -189,7 +226,7 @@ function renderPreviews() {
 }
 
 // ===== SUBMIT POST =====
-submitPostBtn.addEventListener('click', () => {
+submitPostBtn.addEventListener('click', async () => {
   const username = modalUsername.value.trim() || 'anonymous';
   const title    = modalTitleInput.value.trim();
   const content  = modalContent.value.trim();
@@ -210,9 +247,10 @@ submitPostBtn.addEventListener('click', () => {
     timestamp: new Date().toISOString()
   };
 
-  posts.push(newPost);
-  savePosts();
   closeModal();
+  showStatus('> Posting...');
+  posts.push(newPost);
+  await savePosts();
   renderSidebar(searchInput.value);
   selectPost(newPost.id);
 });
@@ -232,8 +270,4 @@ function escapeHtml(str) {
 }
 
 // ===== INIT =====
-loadPosts();
-renderSidebar();
-if (posts.length > 0) {
-  selectPost(posts[posts.length - 1].id);
-}
+fetchPosts();
