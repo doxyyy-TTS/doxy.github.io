@@ -30,32 +30,7 @@ function loadPosts() {
   if (saved) {
     posts = JSON.parse(saved);
   } else {
-    posts = [
-      {
-        id: 1,
-        username: 'root',
-        title: 'Welcome to TERMINAL://SOCIAL',
-        content: 'This is a terminal-themed social platform.\nPost text and multiple images.\nUse the [ + POST ] button to get started.',
-        images: [],
-        timestamp: new Date('2026-07-27T10:00:00').toISOString()
-      },
-      {
-        id: 2,
-        username: 'alex99',
-        title: 'First post here!',
-        content: 'Salut tuturor! Tocmai am descoperit acest site.\nSe pare ca e destul de interesant.',
-        images: [],
-        timestamp: new Date('2026-07-27T11:30:00').toISOString()
-      },
-      {
-        id: 3,
-        username: 'dev_null',
-        title: 'How to exit vim',
-        content: ':q!\n\nYou\'re welcome.',
-        images: [],
-        timestamp: new Date('2026-07-27T12:00:00').toISOString()
-      }
-    ];
+    posts = [];
     savePosts();
   }
 }
@@ -128,8 +103,22 @@ function selectPost(id) {
       </div>
       <div class="post-view-body">${escapeHtml(post.content)}</div>
       ${imagesHtml}
+      <button class="delete-btn" id="delete-post-btn">[ DELETE POST ]</button>
     </div>
   `;
+
+  document.getElementById('delete-post-btn').addEventListener('click', () => {
+    posts = posts.filter(p => p.id !== id);
+    savePosts();
+    activePostId = null;
+    contentArea.innerHTML = `
+      <div class="empty-state">
+        <p>&gt; Post deleted.</p>
+        <p class="blink">█</p>
+      </div>
+    `;
+    renderSidebar(searchInput.value);
+  });
 
   // Lightbox on image click
   contentArea.querySelectorAll('.post-images img').forEach(img => {
